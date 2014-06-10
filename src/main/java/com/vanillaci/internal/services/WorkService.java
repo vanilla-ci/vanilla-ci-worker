@@ -35,6 +35,10 @@ public class WorkService {
 
 		for(List<BuildStepMessage> buildSteps : Arrays.asList(work.getBuildSteps(), work.getPostBuildSteps())) {
 			for (BuildStepMessage buildStepMessage : buildSteps) {
+				if(log.isInfoEnabled()) {
+					log.info("Executing step " + buildStepMessage.getName() + " " + buildStepMessage.getVersion());
+				}
+
 				BuildStep buildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
 				if (buildStep == null) {
 					throw new UnresolvedBuildStepException(buildStepMessage);
@@ -50,8 +54,17 @@ public class WorkService {
 
 				buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, currentResult, currentStatus, workspace, new SdkImpl());
 
+				long buildStepStartTime = System.currentTimeMillis();
 				try {
 					buildStep.execute(buildStepContext);
+
+					long buildStepRunTime = System.currentTimeMillis() - buildStepStartTime;
+
+					if(log.isInfoEnabled()) {
+						log.info("----------------------------");
+						log.info("Run time: " + buildStepRunTime + "ms");
+						log.info("----------------------------");
+					}
 
 					pluginAddedParameters = new HashMap<>(buildStepContext.getAddedParameters());
 					currentResult = buildStepContext.getResult();
@@ -61,11 +74,17 @@ public class WorkService {
 						break;
 					}
 				} catch (Exception e) {
+					long buildStepRunTime = System.currentTimeMillis() - buildStepStartTime;
+
 					log.info("Unexpected exception while running " + work.getId(), e);
+					if(log.isInfoEnabled()) {
+						log.info("----------------------------");
+						log.info("Run time: " + buildStepRunTime + "ms");
+						log.info("----------------------------");
+					}
 
 					pluginAddedParameters = new HashMap<>(buildStepContext.getAddedParameters());
 					currentResult = BuildStep.Result.ERROR;
-					break;
 				}
 			}
 
