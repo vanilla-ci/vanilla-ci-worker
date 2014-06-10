@@ -24,7 +24,7 @@ public class WorkService {
 
 	public BuildStep.Result executeWork(Work work) throws IOException {
 		File workspace = new File("workspace");
-		if(!workspace.exists() && workspace.mkdirs()) {
+		if(!workspace.exists() && !workspace.mkdirs()) {
 			throw new IOException("couldn't create workspace " + workspace.getAbsolutePath());
 		}
 
