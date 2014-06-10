@@ -8,6 +8,7 @@ import org.junit.*;
 import java.util.*;
 
 import static com.vanillaci.plugins.BuildStep.Result;
+import static com.vanillaci.plugins.BuildStep.Status;
 import static org.mockito.Mockito.*;
 
 /**
@@ -22,11 +23,10 @@ public class WorkServiceTest {
 	@Before
 	public void setUp() throws Exception {
 		buildStepService = mock(BuildStepService.class);
-		when(buildStepService.get(Result.SUCCESS.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.SUCCESS));
-		when(buildStepService.get(Result.FAILURE_CONTINUE.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.FAILURE_CONTINUE));
-		when(buildStepService.get(Result.FAILURE_HALT.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.FAILURE_HALT));
-		when(buildStepService.get(Result.ERROR.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.ERROR));
-		when(buildStepService.get(Result.ABORTED.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.ABORTED));
+		when(buildStepService.get(Result.SUCCESS.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.SUCCESS, Status.CONTINUE));
+		when(buildStepService.get(Result.FAILURE.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.FAILURE, Status.HALT));
+		when(buildStepService.get(Result.ERROR.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.ERROR, Status.HALT));
+		when(buildStepService.get(Result.ABORTED.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.ABORTED, Status.HALT));
 
 		workService = new WorkService(buildStepService);
 	}
@@ -37,7 +37,7 @@ public class WorkServiceTest {
 
 		Map<String, String> parameters = Collections.emptyMap();
 		List<BuildStepMessage> buildSteps = ImmutableList.of(
-			new BuildStepMessage(Result.FAILURE_HALT.name(), V1_0, Collections.emptyMap()),
+			new BuildStepMessage(Result.FAILURE.name(), V1_0, Collections.emptyMap()),
 			new BuildStepMessage("Throw", V1_0, Collections.emptyMap())
 		);
 
@@ -55,7 +55,7 @@ public class WorkServiceTest {
 		List<BuildStepMessage> buildSteps = ImmutableList.of();
 
 		List<BuildStepMessage> postBuildSteps = ImmutableList.of(
-			new BuildStepMessage(Result.FAILURE_HALT.name(), V1_0, Collections.emptyMap()),
+			new BuildStepMessage(Result.FAILURE.name(), V1_0, Collections.emptyMap()),
 			new BuildStepMessage("Throw", V1_0, Collections.emptyMap())
 		);
 
@@ -71,7 +71,7 @@ public class WorkServiceTest {
 	public void testExecuteWork_worstWins_badThenGood() throws Exception {
 		Map<String, String> parameters = Collections.emptyMap();
 		List<BuildStepMessage> buildSteps = ImmutableList.of(
-			new BuildStepMessage(Result.FAILURE_HALT.name(), V1_0, Collections.emptyMap()),
+			new BuildStepMessage(Result.FAILURE.name(), V1_0, Collections.emptyMap()),
 			new BuildStepMessage(Result.SUCCESS.name(), V1_0, Collections.emptyMap())
 		);
 
@@ -79,7 +79,7 @@ public class WorkServiceTest {
 
 		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
 		Result result = workService.executeWork(work);
-		assert result == Result.FAILURE_HALT : "the worst Result should be what is returned.";
+		assert result == Result.FAILURE : "the worst Result should be what is returned.";
 	}
 
 	@Test
@@ -87,14 +87,14 @@ public class WorkServiceTest {
 		Map<String, String> parameters = Collections.emptyMap();
 		List<BuildStepMessage> buildSteps = ImmutableList.of(
 			new BuildStepMessage(Result.SUCCESS.name(), V1_0, Collections.emptyMap()),
-			new BuildStepMessage(Result.FAILURE_HALT.name(), V1_0, Collections.emptyMap())
+			new BuildStepMessage(Result.FAILURE.name(), V1_0, Collections.emptyMap())
 		);
 
 		List<BuildStepMessage> postBuildSteps = ImmutableList.of();
 
 		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
 		Result result = workService.executeWork(work);
-		assert result == Result.FAILURE_HALT : "the worst Result should be what is returned.";
+		assert result == Result.FAILURE : "the worst Result should be what is returned.";
 	}
 
 	@Test
@@ -105,19 +105,19 @@ public class WorkServiceTest {
 		);
 
 		List<BuildStepMessage> postBuildSteps = ImmutableList.of(
-			new BuildStepMessage(Result.FAILURE_HALT.name(), V1_0, Collections.emptyMap())
+			new BuildStepMessage(Result.FAILURE.name(), V1_0, Collections.emptyMap())
 		);
 
 		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
 		Result result = workService.executeWork(work);
-		assert result == Result.FAILURE_HALT : "the worst Result should be what is returned.";
+		assert result == Result.FAILURE : "the worst Result should be what is returned.";
 	}
 
 	@Test
 	public void testExecuteWork_worstWins_badThenGood_includingPostBuild() throws Exception {
 		Map<String, String> parameters = Collections.emptyMap();
 		List<BuildStepMessage> buildSteps = ImmutableList.of(
-			new BuildStepMessage(Result.FAILURE_HALT.name(), V1_0, Collections.emptyMap())
+			new BuildStepMessage(Result.FAILURE.name(), V1_0, Collections.emptyMap())
 		);
 
 		List<BuildStepMessage> postBuildSteps = ImmutableList.of(
@@ -126,21 +126,23 @@ public class WorkServiceTest {
 
 		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
 		Result result = workService.executeWork(work);
-		assert result == Result.FAILURE_HALT : "the worst Result should be what is returned.";
+		assert result == Result.FAILURE : "the worst Result should be what is returned.";
 	}
 
 }
 
 class SimpleBuildStep implements BuildStep {
 	private final Result result;
+	private final Status status;
 
-	public SimpleBuildStep(Result result) {
+	public SimpleBuildStep(Result result, Status status) {
 		this.result = result;
+		this.status = status;
 	}
 
 	@Override
-	public Result execute(BuildStepContext context) throws Exception {
-		return result;
+	public void execute(BuildStepContext context) throws Exception {
+		context.setResult(result, status);
 	}
 }
 
@@ -152,7 +154,7 @@ class ErrorBuildStep implements BuildStep {
 	}
 
 	@Override
-	public Result execute(BuildStepContext context) throws Exception {
+	public void execute(BuildStepContext context) throws Exception {
 		throw new TestError(message);
 	}
 }

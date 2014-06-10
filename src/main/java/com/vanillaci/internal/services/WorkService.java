@@ -24,29 +24,19 @@ public class WorkService {
 
 	public BuildStep.Result executeWork(Work work) throws IOException {
 		File workspace = new File("workspace");
-		if(!workspace.exists() && !workspace.mkdirs()) {
+		if (!workspace.exists() && !workspace.mkdirs()) {
 			throw new IOException("couldn't create workspace " + workspace.getAbsolutePath());
 		}
 
-		// This will be passed into the BuildStepContext allowing plugins to add variables to it.
-		Map<String, String> pluginAddedParameters = new HashMap<String, String>();
+		Map<String, String> pluginAddedParameters = new HashMap<>();
+		BuildStep.Result currentResult = BuildStep.Result.SUCCESS;
+		BuildStep.Status currentStatus = BuildStep.Status.CONTINUE;
+		BuildStepContextImpl buildStepContext;
 
-		BuildStep.Result finalResult = executeBuildSteps(work, workspace, pluginAddedParameters);
-		BuildStep.Result postBuildFinalResult = executePostBuildSteps(work, workspace, finalResult, pluginAddedParameters);
-
-		if(postBuildFinalResult.isWorseThan(finalResult)) {
-			finalResult = postBuildFinalResult;
-		}
-
-		return finalResult;
-	}
-
-	private BuildStep.Result executeBuildSteps(Work work, File workspace, Map<String, String> pluginAddedParameters) {
-		BuildStep.Result finalResult = BuildStep.Result.SUCCESS;
-		try {
-			for (BuildStepMessage buildStepMessage : work.getBuildSteps()) {
+		for(List<BuildStepMessage> buildSteps : Arrays.asList(work.getBuildSteps(), work.getPostBuildSteps())) {
+			for (BuildStepMessage buildStepMessage : buildSteps) {
 				BuildStep buildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
-				if(buildStep == null) {
+				if (buildStep == null) {
 					throw new UnresolvedBuildStepException(buildStepMessage);
 				}
 
@@ -58,58 +48,30 @@ public class WorkService {
 					.putAll(pluginAddedParameters)
 					.build();
 
-				BuildStepContext buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, workspace, new SdkImpl());
+				buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, currentResult, currentStatus, workspace, new SdkImpl());
 
-				BuildStep.Result result = buildStep.execute(buildStepContext);
+				try {
+					buildStep.execute(buildStepContext);
 
-				if(result.isWorseThan(finalResult)) {
-					finalResult = result;
+					pluginAddedParameters = new HashMap<>(buildStepContext.getAddedParameters());
+					currentResult = buildStepContext.getResult();
+					currentStatus = buildStepContext.getStatus();
 
-					if(finalResult.isWorseThanOrEqualTo(BuildStep.Result.FAILURE_HALT)) {
+					if (currentStatus == BuildStep.Status.HALT) {
 						break;
 					}
+				} catch (Exception e) {
+					log.info("Unexpected exception while running " + work.getId(), e);
+
+					pluginAddedParameters = new HashMap<>(buildStepContext.getAddedParameters());
+					currentResult = BuildStep.Result.ERROR;
+					break;
 				}
 			}
-		} catch (Exception e) {
-			if(finalResult.isBetterThan(BuildStep.Result.ERROR)) {
-				finalResult = BuildStep.Result.ERROR;
-			}
 
-			log.info("Unexpected exception while running " + work.getId(), e);
-		}
-		return finalResult;
-	}
-
-	private BuildStep.Result executePostBuildSteps(Work work, File workspace, BuildStep.Result finalResult, Map<String, String> pluginAddedParameters) {
-		for (BuildStepMessage buildStepMessage : work.getPostBuildSteps()) {
-			BuildStep buildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
-			if(buildStep == null) {
-				throw new UnresolvedBuildStepException(buildStepMessage);
-			}
-
-			Map<String, String> buildStepParameters = buildStepMessage.getParameters();
-			Map<String, String> workParametersParameters = work.getParameters();
-			Map<String, String> allParameters = ImmutableMap.<String, String>builder()
-				.putAll(buildStepParameters)
-				.putAll(workParametersParameters)
-				.putAll(pluginAddedParameters)
-				.build();
-
-			BuildStepContext buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, workspace, new SdkImpl());
-
-			try {
-				BuildStep.Result result = buildStep.execute(buildStepContext);
-
-				if(result.isWorseThan(finalResult)) {
-					finalResult = result;
-				}
-			} catch (Exception e) {
-				if(finalResult.isBetterThan(BuildStep.Result.ERROR)) {
-					finalResult = BuildStep.Result.ERROR;
-				}
-			}
+			currentStatus = BuildStep.Status.POST_BUILD;
 		}
 
-		return finalResult;
+		return currentResult;
 	}
 }

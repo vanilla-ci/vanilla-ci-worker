@@ -34,7 +34,7 @@ public class BuildStepServiceTest {
 
 class BuildStepStub implements BuildStep {
 	@Override
-	public Result execute(BuildStepContext context) throws Exception {
-		return Result.SUCCESS;
+	public void execute(BuildStepContext context) throws Exception {
+		context.setResult(Result.SUCCESS, Status.CONTINUE);
 	}
 }
