@@ -1,5 +1,6 @@
 package com.vanillaci.internal.services;
 
+import com.vanillaci.internal.exceptions.*;
 import com.vanillaci.internal.model.*;
 import com.vanillaci.plugins.*;
 import org.apache.logging.log4j.*;
@@ -32,7 +33,12 @@ public class WorkService {
 	private BuildStep.Result executeBuildSteps(Work work, BuildStepContext buildStepContext) {
 		BuildStep.Result finalResult = BuildStep.Result.SUCCESS;
 		try {
-			for (BuildStep buildStep : work.getScripts()) {
+			for (BuildStepMessage buildStepMessage : work.getScripts()) {
+				BuildStep buildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
+				if(buildStep == null) {
+					throw new UnresolvedBuildStepException(buildStepMessage);
+				}
+
 				BuildStep.Result result = buildStep.execute(buildStepContext);
 
 				if(result.isWorseThan(finalResult)) {
@@ -54,7 +60,12 @@ public class WorkService {
 	}
 
 	private BuildStep.Result executePostBuildSteps(Work work, BuildStepContext buildStepContext, BuildStep.Result finalResult) {
-		for (BuildStep buildStep : work.getPostScripts()) {
+		for (BuildStepMessage buildStepMessage : work.getPostScripts()) {
+			BuildStep buildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
+			if(buildStep == null) {
+				throw new UnresolvedBuildStepException(buildStepMessage);
+			}
+
 			try {
 				BuildStep.Result result = buildStep.execute(buildStepContext);
 

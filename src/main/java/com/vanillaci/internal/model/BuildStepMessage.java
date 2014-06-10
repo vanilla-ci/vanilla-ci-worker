@@ -9,12 +9,12 @@ import java.util.*;
 /**
  * @author Joel Johnson
  */
-public class ScriptMessage {
+public class BuildStepMessage {
 	@NotNull private final String name;
 	@NotNull private final String version;
 	@NotNull private final Map<String, String> parameters;
 
-	public ScriptMessage(
+	public BuildStepMessage(
 		@JsonProperty("name") @NotNull String name,
 		@JsonProperty("version") @NotNull String version,
 		@JsonProperty("parameters") @NotNull Map<String, String> parameters

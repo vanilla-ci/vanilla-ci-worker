@@ -13,14 +13,14 @@ import java.util.*;
 public class Work {
 	@NotNull private final String id;
 	@NotNull private final Map<String, String> parameters;
-	@NotNull private final List<BuildStep> scripts;
-	@NotNull private final List<BuildStep> postScripts;
+	@NotNull private final List<BuildStepMessage> scripts;
+	@NotNull private final List<BuildStepMessage> postScripts;
 
 	public Work(
 		@JsonProperty("id") @NotNull String id,
 		@JsonProperty("parameters") @Nullable Map<String, String> parameters,
-		@JsonProperty("scripts") @Nullable List<BuildStep> scripts,
-		@JsonProperty("postScripts") @Nullable List<BuildStep> postScripts) {
+		@JsonProperty("scripts") @Nullable List<BuildStepMessage> scripts,
+		@JsonProperty("postScripts") @Nullable List<BuildStepMessage> postScripts) {
 		this.id = id;
 
 		if(parameters == null) parameters = ImmutableMap.of();
@@ -44,12 +44,12 @@ public class Work {
 	}
 
 	@NotNull
-	public List<BuildStep> getScripts() {
+	public List<BuildStepMessage> getScripts() {
 		return scripts;
 	}
 
 	@NotNull
-	public List<BuildStep> getPostScripts() {
+	public List<BuildStepMessage> getPostScripts() {
 		return postScripts;
 	}
 }
