@@ -33,7 +33,7 @@ public class WorkService {
 	private BuildStep.Result executeBuildSteps(Work work, BuildStepContext buildStepContext) {
 		BuildStep.Result finalResult = BuildStep.Result.SUCCESS;
 		try {
-			for (BuildStepMessage buildStepMessage : work.getScripts()) {
+			for (BuildStepMessage buildStepMessage : work.getBuildSteps()) {
 				BuildStep buildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
 				if(buildStep == null) {
 					throw new UnresolvedBuildStepException(buildStepMessage);
@@ -60,7 +60,7 @@ public class WorkService {
 	}
 
 	private BuildStep.Result executePostBuildSteps(Work work, BuildStepContext buildStepContext, BuildStep.Result finalResult) {
-		for (BuildStepMessage buildStepMessage : work.getPostScripts()) {
+		for (BuildStepMessage buildStepMessage : work.getPostBuildSteps()) {
 			BuildStep buildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
 			if(buildStep == null) {
 				throw new UnresolvedBuildStepException(buildStepMessage);

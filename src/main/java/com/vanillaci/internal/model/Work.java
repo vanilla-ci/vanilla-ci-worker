@@ -1,7 +1,6 @@
 package com.vanillaci.internal.model;
 
 import com.google.common.collect.*;
-import com.vanillaci.plugins.*;
 import org.codehaus.jackson.annotate.*;
 import org.jetbrains.annotations.*;
 
@@ -13,24 +12,24 @@ import java.util.*;
 public class Work {
 	@NotNull private final String id;
 	@NotNull private final Map<String, String> parameters;
-	@NotNull private final List<BuildStepMessage> scripts;
-	@NotNull private final List<BuildStepMessage> postScripts;
+	@NotNull private final List<BuildStepMessage> buildSteps;
+	@NotNull private final List<BuildStepMessage> postBuildSteps;
 
 	public Work(
 		@JsonProperty("id") @NotNull String id,
 		@JsonProperty("parameters") @Nullable Map<String, String> parameters,
-		@JsonProperty("scripts") @Nullable List<BuildStepMessage> scripts,
-		@JsonProperty("postScripts") @Nullable List<BuildStepMessage> postScripts) {
+		@JsonProperty("scripts") @Nullable List<BuildStepMessage> buildSteps,
+		@JsonProperty("postScripts") @Nullable List<BuildStepMessage> postBuildSteps) {
 		this.id = id;
 
 		if(parameters == null) parameters = ImmutableMap.of();
 		this.parameters = ImmutableMap.copyOf(parameters);
 
-		if(scripts == null) scripts = ImmutableList.of();
-		this.scripts = ImmutableList.copyOf(scripts);
+		if(buildSteps == null) buildSteps = ImmutableList.of();
+		this.buildSteps = ImmutableList.copyOf(buildSteps);
 
-		if(postScripts == null) postScripts = ImmutableList.of();
-		this.postScripts = ImmutableList.copyOf(postScripts);
+		if(postBuildSteps == null) postBuildSteps = ImmutableList.of();
+		this.postBuildSteps = ImmutableList.copyOf(postBuildSteps);
 	}
 
 	@NotNull
@@ -44,12 +43,12 @@ public class Work {
 	}
 
 	@NotNull
-	public List<BuildStepMessage> getScripts() {
-		return scripts;
+	public List<BuildStepMessage> getBuildSteps() {
+		return buildSteps;
 	}
 
 	@NotNull
-	public List<BuildStepMessage> getPostScripts() {
-		return postScripts;
+	public List<BuildStepMessage> getPostBuildSteps() {
+		return postBuildSteps;
 	}
 }

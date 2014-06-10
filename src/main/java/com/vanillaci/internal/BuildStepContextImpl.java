@@ -9,17 +9,17 @@ import java.util.*;
  * @author Joel Johnson
  */
 public class BuildStepContextImpl implements BuildStepContext {
-	private final Map<String, ? extends Collection<String>> parameters;
+	private final Map<String, String> parameters;
 	private final File workspace;
 	private final Sdk sdk;
 
-	public BuildStepContextImpl(Map<String, ? extends Collection<String>> parameters, File workspace, Sdk sdk) {
+	public BuildStepContextImpl(Map<String, String> parameters, File workspace, Sdk sdk) {
 		this.parameters = parameters;
 		this.workspace = workspace;
 		this.sdk = sdk;
 	}
 
-	public Map<String, ? extends Collection<String>> getParameters() {
+	public Map<String, String> getParameters() {
 		return parameters;
 	}
 

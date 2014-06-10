@@ -10,7 +10,7 @@ import java.util.*;
  * @author Joel Johnson
  */
 public interface BuildStepContext {
-	Map<String, ? extends Collection<String>> getParameters();
+	Map<String, String> getParameters();
 	File getWorkspace();
 	Sdk getSdk();
 }
