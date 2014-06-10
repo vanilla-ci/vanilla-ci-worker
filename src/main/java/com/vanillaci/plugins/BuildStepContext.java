@@ -11,6 +11,8 @@ import java.util.*;
  */
 public interface BuildStepContext {
 	Map<String, String> getParameters();
+	void addParameter(String parameterName, String parameterValue);
+
 	File getWorkspace();
 	Sdk getSdk();
 }

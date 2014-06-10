@@ -28,8 +28,11 @@ public class WorkService {
 			throw new IOException("couldn't create workspace " + workspace.getAbsolutePath());
 		}
 
-		BuildStep.Result finalResult = executeBuildSteps(work, workspace);
-		BuildStep.Result postBuildFinalResult = executePostBuildSteps(work, workspace, finalResult);
+		// This will be passed into the BuildStepContext allowing plugins to add variables to it.
+		Map<String, String> pluginAddedParameters = new HashMap<String, String>();
+
+		BuildStep.Result finalResult = executeBuildSteps(work, workspace, pluginAddedParameters);
+		BuildStep.Result postBuildFinalResult = executePostBuildSteps(work, workspace, finalResult, pluginAddedParameters);
 
 		if(postBuildFinalResult.isWorseThan(finalResult)) {
 			finalResult = postBuildFinalResult;
@@ -38,7 +41,7 @@ public class WorkService {
 		return finalResult;
 	}
 
-	private BuildStep.Result executeBuildSteps(Work work, File workspace) {
+	private BuildStep.Result executeBuildSteps(Work work, File workspace, Map<String, String> pluginAddedParameters) {
 		BuildStep.Result finalResult = BuildStep.Result.SUCCESS;
 		try {
 			for (BuildStepMessage buildStepMessage : work.getBuildSteps()) {
@@ -52,9 +55,10 @@ public class WorkService {
 				Map<String, String> allParameters = ImmutableMap.<String, String>builder()
 					.putAll(buildStepParameters)
 					.putAll(workParametersParameters)
+					.putAll(pluginAddedParameters)
 					.build();
 
-				BuildStepContext buildStepContext = new BuildStepContextImpl(allParameters, workspace, new SdkImpl());
+				BuildStepContext buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, workspace, new SdkImpl());
 
 				BuildStep.Result result = buildStep.execute(buildStepContext);
 
@@ -76,7 +80,7 @@ public class WorkService {
 		return finalResult;
 	}
 
-	private BuildStep.Result executePostBuildSteps(Work work, File workspace, BuildStep.Result finalResult) {
+	private BuildStep.Result executePostBuildSteps(Work work, File workspace, BuildStep.Result finalResult, Map<String, String> pluginAddedParameters) {
 		for (BuildStepMessage buildStepMessage : work.getPostBuildSteps()) {
 			BuildStep buildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
 			if(buildStep == null) {
@@ -88,9 +92,10 @@ public class WorkService {
 			Map<String, String> allParameters = ImmutableMap.<String, String>builder()
 				.putAll(buildStepParameters)
 				.putAll(workParametersParameters)
+				.putAll(pluginAddedParameters)
 				.build();
 
-			BuildStepContext buildStepContext = new BuildStepContextImpl(allParameters, workspace, new SdkImpl());
+			BuildStepContext buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, workspace, new SdkImpl());
 
 			try {
 				BuildStep.Result result = buildStep.execute(buildStepContext);
