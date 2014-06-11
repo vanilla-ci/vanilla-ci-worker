@@ -36,6 +36,14 @@ public interface BuildStepContext {
 	BuildStep.Result getResult();
 
 	/**
+	 * Returns the last known status of all the buildSteps.
+	 * @return Typically CONTINUE will be returned if it's in the Build phase,
+	 * POST_BUILD will be returned if it's in the PostBuild phase,
+	 * and HALT will be returned if it's in the Build phase and the last build step errored out, or was told to halt by another plugin.
+	 */
+	BuildStep.Status getStatus();
+
+	/**
 	 * Manually overwrites the Result and Status.
 	 * Typically you will want to use {@link #setResult(com.vanillaci.plugins.BuildStep.Result, com.vanillaci.plugins.BuildStep.Status)} instead.
 	 * This would be used if the plugin needs to set the result or status to a better state than it is currently.

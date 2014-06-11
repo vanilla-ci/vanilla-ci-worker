@@ -51,6 +51,7 @@ public class BuildStepContextImpl implements BuildStepContext {
 		return result;
 	}
 
+	@Override
 	public BuildStep.Status getStatus() {
 		return status;
 	}
