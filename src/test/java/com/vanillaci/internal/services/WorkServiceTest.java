@@ -5,7 +5,9 @@ import com.vanillaci.internal.model.*;
 import com.vanillaci.plugins.*;
 import org.junit.*;
 
+import java.io.*;
 import java.util.*;
+import java.util.concurrent.atomic.*;
 
 import static com.vanillaci.plugins.BuildStep.Result;
 import static com.vanillaci.plugins.BuildStep.Status;
@@ -19,6 +21,7 @@ public class WorkServiceTest {
 
 	private WorkService workService;
 	private BuildStepService buildStepService;
+	private BuildStepInterceptorService buildStepInterceptorService;
 
 	@Before
 	public void setUp() throws Exception {
@@ -28,7 +31,10 @@ public class WorkServiceTest {
 		when(buildStepService.get(Result.ERROR.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.ERROR, Status.HALT));
 		when(buildStepService.get(Result.ABORTED.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.ABORTED, Status.HALT));
 
-		workService = new WorkService(buildStepService);
+		buildStepInterceptorService = mock(BuildStepInterceptorService.class);
+		when(buildStepInterceptorService.getAll()).thenReturn(Collections.emptyList());
+
+		workService = new WorkService(buildStepService, buildStepInterceptorService);
 	}
 
 	@Test
@@ -129,6 +135,107 @@ public class WorkServiceTest {
 		assert result == Result.FAILURE : "the worst Result should be what is returned.";
 	}
 
+	@Test
+	public void testExecuteInterceptor_SKIP() throws IOException {
+		when(buildStepService.get("Throw", V1_0)).thenReturn(new ErrorBuildStep("Should continue HALT"));
+
+		when(buildStepInterceptorService.getAll()).thenReturn(Arrays.asList(
+			new SimpleInterceptor(BuildStepInterceptor.InterceptorStatus.SKIP)
+		));
+
+		Map<String, String> parameters = Collections.emptyMap();
+		List<BuildStepMessage> buildSteps = ImmutableList.of(
+			new BuildStepMessage("Throw", V1_0, Collections.emptyMap()) // should never be called
+		);
+
+		List<BuildStepMessage> postBuildSteps = ImmutableList.of();
+
+		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
+		workService.executeWork(work); // should not fail because the Throw build step should be skipped
+	}
+
+	@Test
+	public void testExecuteInterceptor_RUN() throws IOException {
+		when(buildStepService.get("Throw", V1_0)).thenReturn(new ErrorBuildStep("Should continue HALT"));
+
+		when(buildStepInterceptorService.getAll()).thenReturn(Arrays.asList(
+			new SimpleInterceptor(BuildStepInterceptor.InterceptorStatus.RUN)
+		));
+
+		Map<String, String> parameters = Collections.emptyMap();
+		List<BuildStepMessage> buildSteps = ImmutableList.of(
+			new BuildStepMessage("Throw", V1_0, Collections.emptyMap()) // should never be called
+		);
+
+		List<BuildStepMessage> postBuildSteps = ImmutableList.of();
+
+		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
+
+		try {
+			workService.executeWork(work); // should not fail because the Throw build step should be skipped
+			assert false : "an exception should have been thrown because the build step should be run";
+		} catch (TestError ignore) {}
+	}
+
+	@Test
+	public void testExecuteInterceptor_null() throws IOException {
+		when(buildStepService.get("Throw", V1_0)).thenReturn(new ErrorBuildStep("Should continue HALT"));
+
+		when(buildStepInterceptorService.getAll()).thenReturn(Arrays.asList(
+			new SimpleInterceptor(null)
+		));
+
+		Map<String, String> parameters = Collections.emptyMap();
+		List<BuildStepMessage> buildSteps = ImmutableList.of(
+			new BuildStepMessage("Throw", V1_0, Collections.emptyMap()) // should never be called
+		);
+
+		List<BuildStepMessage> postBuildSteps = ImmutableList.of();
+
+		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
+
+		try {
+			workService.executeWork(work); // should not fail because the Throw build step should be skipped
+			assert false : "an exception should have been thrown because the build step should be run";
+		} catch (TestError ignore) {}
+	}
+
+	@Test
+	public void testExecuteInterceptor_afterRunsForEach() throws IOException {
+		//using atomic integers so I can pass by reference
+		AtomicInteger beforeCount = new AtomicInteger();
+		AtomicInteger afterCount = new AtomicInteger();
+
+		when(buildStepInterceptorService.getAll()).thenReturn(Arrays.asList(
+			new BuildStepInterceptor() {
+				@Override
+				public InterceptorStatus before(BuildStepContext context, BuildStep nextBuildStep, int buildStepsIndex, int totalBuildSteps) {
+					beforeCount.incrementAndGet();
+					return InterceptorStatus.RUN;
+				}
+
+				@Override
+				public void after(BuildStepContext context, BuildStep previousBuildStep, int buildStepsIndex, int totalBuildSteps) {
+					afterCount.incrementAndGet();
+				}
+			}
+		));
+
+		Map<String, String> parameters = Collections.emptyMap();
+		List<BuildStepMessage> buildSteps = ImmutableList.of(
+			new BuildStepMessage(Result.SUCCESS.name(), V1_0, Collections.emptyMap()),
+			new BuildStepMessage(Result.SUCCESS.name(), V1_0, Collections.emptyMap()),
+			new BuildStepMessage(Result.SUCCESS.name(), V1_0, Collections.emptyMap())
+		);
+
+		List<BuildStepMessage> postBuildSteps = ImmutableList.of();
+
+		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
+		workService.executeWork(work); // should not fail because the Throw build step should be skipped
+
+		assert beforeCount.get() == 3 : "before should be called 3 times. Once for each build step.";
+		assert afterCount.get() == 3;
+	}
 }
 
 class SimpleBuildStep implements BuildStep {
@@ -165,5 +272,23 @@ class ErrorBuildStep implements BuildStep {
 class TestError extends Error {
 	TestError(String message) {
 		super(message);
+	}
+}
+
+class SimpleInterceptor implements BuildStepInterceptor {
+	private final InterceptorStatus interceptorStatus;
+
+	SimpleInterceptor(InterceptorStatus interceptorStatus) {
+		this.interceptorStatus = interceptorStatus;
+	}
+
+	@Override
+	public InterceptorStatus before(BuildStepContext context, BuildStep nextBuildStep, int buildStepsIndex, int totalBuildSteps) {
+		return interceptorStatus;
+	}
+
+	@Override
+	public void after(BuildStepContext context, BuildStep previousBuildStep, int buildStepsIndex, int totalBuildSteps) {
+
 	}
 }

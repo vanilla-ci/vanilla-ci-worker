@@ -17,9 +17,11 @@ public class WorkService {
 	private static final Logger log = LogManager.getLogger();
 
 	private final BuildStepService buildStepService;
+	private final BuildStepInterceptorService buildStepInterceptorService;
 
-	public WorkService(BuildStepService buildStepService) {
+	public WorkService(BuildStepService buildStepService, BuildStepInterceptorService buildStepInterceptorService) {
 		this.buildStepService = buildStepService;
+		this.buildStepInterceptorService = buildStepInterceptorService;
 	}
 
 	public BuildStep.Result executeWork(Work work) throws IOException {
@@ -28,13 +30,19 @@ public class WorkService {
 			throw new IOException("couldn't create workspace " + workspace.getAbsolutePath());
 		}
 
+		Collection<BuildStepInterceptor> buildStepInterceptors = buildStepInterceptorService.getAll();
+
 		Map<String, String> pluginAddedParameters = new HashMap<>();
 		BuildStep.Result currentResult = BuildStep.Result.SUCCESS;
 		BuildStep.Status currentStatus = BuildStep.Status.CONTINUE;
 		BuildStepContextImpl buildStepContext;
 
 		for(List<BuildStepMessage> buildSteps : Arrays.asList(work.getBuildSteps(), work.getPostBuildSteps())) {
+			int buildStepIndex = -1; // -1 so we can increment at the start. That way we don't have to worry about breaks/continues/catches in the loop
+			final int totalBuildSteps = buildSteps.size();
+
 			for (BuildStepMessage buildStepMessage : buildSteps) {
+				buildStepIndex++;
 				if(log.isInfoEnabled()) {
 					log.info("Executing step " + buildStepMessage.getName() + " " + buildStepMessage.getVersion());
 				}
@@ -54,6 +62,11 @@ public class WorkService {
 
 				buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, currentResult, currentStatus, workspace, new SdkImpl());
 
+				boolean runStep = runBuildStepInterceptorBefore(buildStepInterceptors, buildStepContext, buildStepIndex, totalBuildSteps, buildStep);
+				if(!runStep) {
+					continue;
+				}
+
 				long buildStepStartTime = System.currentTimeMillis();
 				try {
 					buildStep.execute(buildStepContext);
@@ -62,7 +75,7 @@ public class WorkService {
 
 					if(log.isInfoEnabled()) {
 						log.info("----------------------------");
-						log.info("Run time: " + buildStepRunTime + "ms");
+						log.info("Run time ("+buildStep.getClass().getName()+"): " + buildStepRunTime + "ms");
 						log.info("----------------------------");
 					}
 
@@ -71,6 +84,7 @@ public class WorkService {
 					currentStatus = buildStepContext.getStatus();
 
 					if (currentStatus == BuildStep.Status.HALT) {
+						runBuildStepInterceptorAfter(buildStepInterceptors, buildStepContext, buildStepIndex, totalBuildSteps, buildStep);
 						break;
 					}
 				} catch (Exception e) {
@@ -79,18 +93,60 @@ public class WorkService {
 					log.info("Unexpected exception while running " + work.getId(), e);
 					if(log.isInfoEnabled()) {
 						log.info("----------------------------");
-						log.info("Run time: " + buildStepRunTime + "ms");
+						log.info("Run time ("+buildStep.getClass().getName()+"):" + buildStepRunTime + "ms");
 						log.info("----------------------------");
 					}
 
 					pluginAddedParameters = new HashMap<>(buildStepContext.getAddedParameters());
 					currentResult = BuildStep.Result.ERROR;
 				}
+				runBuildStepInterceptorAfter(buildStepInterceptors, buildStepContext, buildStepIndex, totalBuildSteps, buildStep);
 			}
 
 			currentStatus = BuildStep.Status.POST_BUILD;
 		}
 
 		return currentResult;
+	}
+
+	private boolean runBuildStepInterceptorBefore(Collection<BuildStepInterceptor> buildStepInterceptors, BuildStepContextImpl buildStepContext, int buildStepIndex, int totalBuildSteps, BuildStep buildStep) {
+		boolean result = true;
+		for (BuildStepInterceptor buildStepInterceptor : buildStepInterceptors) {
+			if(log.isInfoEnabled()) {
+				log.info("Running BuildStepInterceptor before: " + buildStepInterceptor.getClass().getName());
+			}
+
+			long interceptorStartTime = System.currentTimeMillis();
+			BuildStepInterceptor.InterceptorStatus status = buildStepInterceptor.before(buildStepContext, buildStep, buildStepIndex, totalBuildSteps);
+			long interceptorRunTime = System.currentTimeMillis() - interceptorStartTime;
+
+			if(log.isInfoEnabled()) {
+				log.info("----------------------------");
+				log.info("Run time ("+buildStepInterceptor.getClass()+".before): " + interceptorRunTime + "ms");
+				log.info("----------------------------");
+			}
+
+			result = result && status != BuildStepInterceptor.InterceptorStatus.SKIP; // Null or RUN are treated the same
+		}
+		return result;
+	}
+
+	private void runBuildStepInterceptorAfter(Collection<BuildStepInterceptor> buildStepInterceptors, BuildStepContextImpl buildStepContext, int buildStepIndex, int totalBuildSteps, BuildStep buildStep) {
+		for (BuildStepInterceptor buildStepInterceptor : buildStepInterceptors) {
+			if(log.isInfoEnabled()) {
+				log.info("Running BuildStepInterceptor after: " + buildStepInterceptor.getClass().getName());
+			}
+
+			long interceptorStartTime = System.currentTimeMillis();
+			buildStepInterceptor.after(buildStepContext, buildStep, buildStepIndex, totalBuildSteps);
+			long interceptorRunTime = System.currentTimeMillis() - interceptorStartTime;
+
+			if(log.isInfoEnabled()) {
+				log.info("----------------------------");
+				log.info("Run time ("+buildStepInterceptor.getClass()+".after): " + interceptorRunTime + "ms");
+				log.info("----------------------------");
+			}
+
+		}
 	}
 }

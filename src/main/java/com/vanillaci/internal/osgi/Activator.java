@@ -14,12 +14,13 @@ import org.osgi.framework.*;
 public class Activator implements BundleActivator {
 	@Override
 	public void start(BundleContext context) throws Exception {
+		BuildStepService buildStepService = new BuildStepService();
+		BuildStepInterceptorService buildStepInterceptorService = new BuildStepInterceptorService();
+
+		//WorkService workService = new WorkService(buildStepService, buildStepInterceptorService);
 		//TODO: initialize Messaging and start listening to queues
 
-		BuildStepService buildStepService = new BuildStepService();
-		WorkService workService = new WorkService(buildStepService);
-
-		PluginServiceListener listener = new PluginServiceListener(buildStepService);
+		PluginServiceListener listener = new PluginServiceListener(buildStepService, buildStepInterceptorService);
 		context.addServiceListener(listener);
 	}
 

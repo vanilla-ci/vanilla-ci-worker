@@ -11,16 +11,18 @@ import org.osgi.framework.*;
  */
 public class PluginServiceListener implements ServiceListener {
 	@NotNull private final BuildStepService buildStepService;
+	@NotNull private final BuildStepInterceptorService buildStepInterceptorService;
 
-	public PluginServiceListener(@NotNull BuildStepService buildStepService) {
+	public PluginServiceListener(@NotNull BuildStepService buildStepService, @NotNull BuildStepInterceptorService buildStepInterceptorService) {
 		this.buildStepService = buildStepService;
+		this.buildStepInterceptorService = buildStepInterceptorService;
 	}
 
 	@Override
 	public void serviceChanged(ServiceEvent event) {
 		ServiceReference<?> serviceReference = event.getServiceReference();
 
-		Bundle bundle = serviceReference.getBundle();
+		Bundle bundle = serviceReference.getBundle(); // TODO: handle the Unregister and Modified states! They will actually throw a NPE right now
 		BundleContext context = bundle.getBundleContext();
 		Object service = context.getService(serviceReference);
 
@@ -38,6 +40,25 @@ public class PluginServiceListener implements ServiceListener {
 					break;
 				case ServiceEvent.MODIFIED:
 					buildStepService.update(name, version, buildStep);
+					break;
+			}
+		}
+
+		//no else-if in case someone implements more than one interface in one class
+		if(service instanceof BuildStepInterceptor) {
+			BuildStepInterceptor buildStep = (BuildStepInterceptor) service;
+			String name = buildStep.getClass().getName();
+			String version = getVersion(bundle);
+
+			switch (event.getType()) {
+				case ServiceEvent.REGISTERED:
+					buildStepInterceptorService.register(name, version, buildStep);
+					break;
+				case ServiceEvent.UNREGISTERING:
+					buildStepInterceptorService.unregister(name, version);
+					break;
+				case ServiceEvent.MODIFIED:
+					buildStepInterceptorService.update(name, version, buildStep);
 					break;
 			}
 		}
