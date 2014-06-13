@@ -56,4 +56,28 @@ public interface BuildStepContext {
 	 * @param status if the status is HALT and the current status is not POST_BUILD, then the current status will be set to HALT.
 	 */
 	void setResult(BuildStep.Result result, BuildStep.Status status);
+
+	/**
+	 * @return The build step that's going to be run.
+	 * 			From the context of a BuildStep's execute method, BuildContext.getBuildStep() == this.
+	 */
+	BuildStep getBuildStep();
+
+	/**
+	 * Override the buildStep that's about to run. Obviously, calling this will only have effect if it's called before the
+	 * build step is run. For example, calling it from {@link com.vanillaci.plugins.BuildStepInterceptor#after} will have no effect.
+	 *
+	 * @param buildStep The buildStep that should execute.
+	 */
+	void setBuildStep(BuildStep buildStep);
+
+	/**
+	 * Get the number of steps executed before now.
+	 */
+	int getBuildStepIndex();
+
+	/**
+	 * Gets the total number of steps that will be executed.
+	 */
+	int getTotalBuildSteps();
 }

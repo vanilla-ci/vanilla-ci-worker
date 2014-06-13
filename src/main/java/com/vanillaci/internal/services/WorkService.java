@@ -60,11 +60,15 @@ public class WorkService {
 					.putAll(pluginAddedParameters)
 					.build();
 
-				buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, currentResult, currentStatus, workspace, new SdkImpl());
+				buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, buildStep, currentResult, currentStatus, workspace, new SdkImpl(), buildStepIndex, totalBuildSteps);
 
-				boolean runStep = runBuildStepInterceptorBefore(buildStepInterceptors, buildStepContext, buildStepIndex, totalBuildSteps, buildStep);
-				if(!runStep) {
-					continue;
+				runBuildStepInterceptorBefore(buildStepInterceptors, buildStepContext);
+
+				BuildStep newBuildStep = buildStepContext.getBuildStep();
+				if(buildStep != newBuildStep) {
+					if(log.isInfoEnabled()) log.info("Overwritten build step: " + buildStep.getClass().getName() + " was overwritten by " + newBuildStep.getClass().getName());
+
+					buildStep = newBuildStep;
 				}
 
 				long buildStepStartTime = System.currentTimeMillis();
@@ -84,7 +88,7 @@ public class WorkService {
 					currentStatus = buildStepContext.getStatus();
 
 					if (currentStatus == BuildStep.Status.HALT) {
-						runBuildStepInterceptorAfter(buildStepInterceptors, buildStepContext, buildStepIndex, totalBuildSteps, buildStep);
+						runBuildStepInterceptorAfter(buildStepInterceptors, buildStepContext);
 						break;
 					}
 				} catch (Exception e) {
@@ -100,7 +104,7 @@ public class WorkService {
 					pluginAddedParameters = new HashMap<>(buildStepContext.getAddedParameters());
 					currentResult = BuildStep.Result.ERROR;
 				}
-				runBuildStepInterceptorAfter(buildStepInterceptors, buildStepContext, buildStepIndex, totalBuildSteps, buildStep);
+				runBuildStepInterceptorAfter(buildStepInterceptors, buildStepContext);
 			}
 
 			currentStatus = BuildStep.Status.POST_BUILD;
@@ -109,15 +113,14 @@ public class WorkService {
 		return currentResult;
 	}
 
-	private boolean runBuildStepInterceptorBefore(Collection<BuildStepInterceptor> buildStepInterceptors, BuildStepContextImpl buildStepContext, int buildStepIndex, int totalBuildSteps, BuildStep buildStep) {
-		boolean result = true;
+	private void runBuildStepInterceptorBefore(Collection<BuildStepInterceptor> buildStepInterceptors, BuildStepContextImpl buildStepContext) {
 		for (BuildStepInterceptor buildStepInterceptor : buildStepInterceptors) {
 			if(log.isInfoEnabled()) {
 				log.info("Running BuildStepInterceptor before: " + buildStepInterceptor.getClass().getName());
 			}
 
 			long interceptorStartTime = System.currentTimeMillis();
-			BuildStepInterceptor.InterceptorStatus status = buildStepInterceptor.before(buildStepContext, buildStep, buildStepIndex, totalBuildSteps);
+			buildStepInterceptor.before(buildStepContext);
 			long interceptorRunTime = System.currentTimeMillis() - interceptorStartTime;
 
 			if(log.isInfoEnabled()) {
@@ -125,20 +128,17 @@ public class WorkService {
 				log.info("Run time ("+buildStepInterceptor.getClass()+".before): " + interceptorRunTime + "ms");
 				log.info("----------------------------");
 			}
-
-			result = result && status != BuildStepInterceptor.InterceptorStatus.SKIP; // Null or RUN are treated the same
 		}
-		return result;
 	}
 
-	private void runBuildStepInterceptorAfter(Collection<BuildStepInterceptor> buildStepInterceptors, BuildStepContextImpl buildStepContext, int buildStepIndex, int totalBuildSteps, BuildStep buildStep) {
+	private void runBuildStepInterceptorAfter(Collection<BuildStepInterceptor> buildStepInterceptors, BuildStepContextImpl buildStepContext) {
 		for (BuildStepInterceptor buildStepInterceptor : buildStepInterceptors) {
 			if(log.isInfoEnabled()) {
 				log.info("Running BuildStepInterceptor after: " + buildStepInterceptor.getClass().getName());
 			}
 
 			long interceptorStartTime = System.currentTimeMillis();
-			buildStepInterceptor.after(buildStepContext, buildStep, buildStepIndex, totalBuildSteps);
+			buildStepInterceptor.after(buildStepContext);
 			long interceptorRunTime = System.currentTimeMillis() - interceptorStartTime;
 
 			if(log.isInfoEnabled()) {

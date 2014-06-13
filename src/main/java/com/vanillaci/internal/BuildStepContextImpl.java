@@ -17,20 +17,27 @@ public class BuildStepContextImpl implements BuildStepContext {
 	private final File workspace;
 	private final Sdk sdk;
 
+	private BuildStep buildStep;
 	private BuildStep.Result result;
 	private BuildStep.Status status;
+	private final int buildStepsIndex;
+	private final int totalBuildSteps;
+
 
 	/**
 	 * @param pluginAddedParameters Any time a plugin adds parameters, those parameters will be available to all other jobs.
 	 */
-	public BuildStepContextImpl(Map<String, String> parameters, Map<String, String> pluginAddedParameters, BuildStep.Result result, BuildStep.Status status, File workspace, Sdk sdk) {
+	public BuildStepContextImpl(Map<String, String> parameters, Map<String, String> pluginAddedParameters, BuildStep buildStep, BuildStep.Result result, BuildStep.Status status, File workspace, Sdk sdk, int buildStepsIndex, int totalBuildSteps) {
 		this.parameters = ImmutableMap.copyOf(parameters);
 		this.addedParameters = new HashMap<>(pluginAddedParameters);
 		this.workspace = workspace;
 		this.sdk = sdk;
 
+		this.buildStep = buildStep;
 		this.result = result;
 		this.status = status;
+		this.buildStepsIndex = buildStepsIndex;
+		this.totalBuildSteps = totalBuildSteps;
 	}
 
 	public Map<String, String> getParameters() {
@@ -45,6 +52,16 @@ public class BuildStepContextImpl implements BuildStepContext {
 		return ImmutableMap.copyOf(addedParameters);
 	}
 
+
+	@Override
+	public BuildStep getBuildStep() {
+		return buildStep;
+	}
+
+	@Override
+	public void setBuildStep(BuildStep buildStep) {
+		this.buildStep = buildStep;
+	}
 
 	@Override
 	public BuildStep.Result getResult() {
@@ -71,6 +88,16 @@ public class BuildStepContextImpl implements BuildStepContext {
 		if(status == BuildStep.Status.HALT && this.status != BuildStep.Status.POST_BUILD) {
 			this.status = status;
 		}
+	}
+
+	@Override
+	public int getBuildStepIndex() {
+		return buildStepsIndex;
+	}
+
+	@Override
+	public int getTotalBuildSteps() {
+		return totalBuildSteps;
 	}
 
 	public File getWorkspace() {

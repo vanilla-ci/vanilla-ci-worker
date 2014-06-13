@@ -5,7 +5,6 @@ import com.vanillaci.internal.model.*;
 import com.vanillaci.plugins.*;
 import org.junit.*;
 
-import java.io.*;
 import java.util.*;
 import java.util.concurrent.atomic.*;
 
@@ -136,72 +135,41 @@ public class WorkServiceTest {
 	}
 
 	@Test
-	public void testExecuteInterceptor_SKIP() throws IOException {
-		when(buildStepService.get("Throw", V1_0)).thenReturn(new ErrorBuildStep("Should continue HALT"));
-
-		when(buildStepInterceptorService.getAll()).thenReturn(Arrays.asList(
-			new SimpleInterceptor(BuildStepInterceptor.InterceptorStatus.SKIP)
-		));
-
+	public void testExecuteInterceptor_skip() throws Exception {
 		Map<String, String> parameters = Collections.emptyMap();
 		List<BuildStepMessage> buildSteps = ImmutableList.of(
-			new BuildStepMessage("Throw", V1_0, Collections.emptyMap()) // should never be called
+			new BuildStepMessage(Result.SUCCESS.name(), V1_0, Collections.emptyMap())
 		);
 
 		List<BuildStepMessage> postBuildSteps = ImmutableList.of();
 
-		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
-		workService.executeWork(work); // should not fail because the Throw build step should be skipped
-	}
-
-	@Test
-	public void testExecuteInterceptor_RUN() throws IOException {
-		when(buildStepService.get("Throw", V1_0)).thenReturn(new ErrorBuildStep("Should continue HALT"));
-
 		when(buildStepInterceptorService.getAll()).thenReturn(Arrays.asList(
-			new SimpleInterceptor(BuildStepInterceptor.InterceptorStatus.RUN)
+			new BuildStepInterceptor() {
+				@Override
+				public void before(BuildStepContext context) {
+					context.setBuildStep(context1 -> { throw new TestError("Failure from inside the before"); });
+				}
+
+				@Override
+				public void after(BuildStepContext context) {
+
+				}
+			}
 		));
 
-		Map<String, String> parameters = Collections.emptyMap();
-		List<BuildStepMessage> buildSteps = ImmutableList.of(
-			new BuildStepMessage("Throw", V1_0, Collections.emptyMap()) // should never be called
-		);
-
-		List<BuildStepMessage> postBuildSteps = ImmutableList.of();
-
 		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
-
 		try {
-			workService.executeWork(work); // should not fail because the Throw build step should be skipped
-			assert false : "an exception should have been thrown because the build step should be run";
-		} catch (TestError ignore) {}
+			workService.executeWork(work);
+			assert false : "exception should have been thrown by the overwritten BuildStep";
+		} catch (TestError e) {
+			if(!"Failure from inside the before".equals(e.getMessage())) {
+				throw e;
+			}
+		}
 	}
 
 	@Test
-	public void testExecuteInterceptor_null() throws IOException {
-		when(buildStepService.get("Throw", V1_0)).thenReturn(new ErrorBuildStep("Should continue HALT"));
-
-		when(buildStepInterceptorService.getAll()).thenReturn(Arrays.asList(
-			new SimpleInterceptor(null)
-		));
-
-		Map<String, String> parameters = Collections.emptyMap();
-		List<BuildStepMessage> buildSteps = ImmutableList.of(
-			new BuildStepMessage("Throw", V1_0, Collections.emptyMap()) // should never be called
-		);
-
-		List<BuildStepMessage> postBuildSteps = ImmutableList.of();
-
-		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
-
-		try {
-			workService.executeWork(work); // should not fail because the Throw build step should be skipped
-			assert false : "an exception should have been thrown because the build step should be run";
-		} catch (TestError ignore) {}
-	}
-
-	@Test
-	public void testExecuteInterceptor_afterRunsForEach() throws IOException {
+	public void testExecuteInterceptor_afterRunsForEach() throws Exception {
 		//using atomic integers so I can pass by reference
 		AtomicInteger beforeCount = new AtomicInteger();
 		AtomicInteger afterCount = new AtomicInteger();
@@ -209,13 +177,12 @@ public class WorkServiceTest {
 		when(buildStepInterceptorService.getAll()).thenReturn(Arrays.asList(
 			new BuildStepInterceptor() {
 				@Override
-				public InterceptorStatus before(BuildStepContext context, BuildStep nextBuildStep, int buildStepsIndex, int totalBuildSteps) {
+				public void before(BuildStepContext context) {
 					beforeCount.incrementAndGet();
-					return InterceptorStatus.RUN;
 				}
 
 				@Override
-				public void after(BuildStepContext context, BuildStep previousBuildStep, int buildStepsIndex, int totalBuildSteps) {
+				public void after(BuildStepContext context) {
 					afterCount.incrementAndGet();
 				}
 			}
@@ -231,10 +198,10 @@ public class WorkServiceTest {
 		List<BuildStepMessage> postBuildSteps = ImmutableList.of();
 
 		Work work = new Work("work 1", parameters, buildSteps, postBuildSteps);
-		workService.executeWork(work); // should not fail because the Throw build step should be skipped
+		workService.executeWork(work);
 
 		assert beforeCount.get() == 3 : "before should be called 3 times. Once for each build step.";
-		assert afterCount.get() == 3;
+		assert afterCount.get() == 3 : "after should be called 3 times. Once for each build step.";
 	}
 }
 
@@ -272,23 +239,5 @@ class ErrorBuildStep implements BuildStep {
 class TestError extends Error {
 	TestError(String message) {
 		super(message);
-	}
-}
-
-class SimpleInterceptor implements BuildStepInterceptor {
-	private final InterceptorStatus interceptorStatus;
-
-	SimpleInterceptor(InterceptorStatus interceptorStatus) {
-		this.interceptorStatus = interceptorStatus;
-	}
-
-	@Override
-	public InterceptorStatus before(BuildStepContext context, BuildStep nextBuildStep, int buildStepsIndex, int totalBuildSteps) {
-		return interceptorStatus;
-	}
-
-	@Override
-	public void after(BuildStepContext context, BuildStep previousBuildStep, int buildStepsIndex, int totalBuildSteps) {
-
 	}
 }
