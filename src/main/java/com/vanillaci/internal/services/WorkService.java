@@ -4,6 +4,7 @@ import com.google.common.collect.*;
 import com.vanillaci.internal.*;
 import com.vanillaci.internal.exceptions.*;
 import com.vanillaci.internal.model.*;
+import com.vanillaci.internal.util.*;
 import com.vanillaci.plugins.*;
 import org.apache.logging.log4j.*;
 
@@ -15,6 +16,8 @@ import java.util.*;
  */
 public class WorkService {
 	private static final Logger log = LogManager.getLogger();
+
+	private final StopWatch stopWatch = new StopWatch(log);
 
 	private final BuildStepService buildStepService;
 	private final BuildStepInterceptorService buildStepInterceptorService;
@@ -35,7 +38,6 @@ public class WorkService {
 		Map<String, String> pluginAddedParameters = new HashMap<>();
 		BuildStep.Result currentResult = BuildStep.Result.SUCCESS;
 		BuildStep.Status currentStatus = BuildStep.Status.CONTINUE;
-		BuildStepContextImpl buildStepContext;
 
 		for(List<BuildStepMessage> buildSteps : Arrays.asList(work.getBuildSteps(), work.getPostBuildSteps())) {
 			int buildStepIndex = -1; // -1 so we can increment at the start. That way we don't have to worry about breaks/continues/catches in the loop
@@ -47,8 +49,8 @@ public class WorkService {
 					log.info("Executing step " + buildStepMessage.getName() + " " + buildStepMessage.getVersion());
 				}
 
-				BuildStep buildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
-				if (buildStep == null) {
+				BuildStep definedBuildStep = buildStepService.get(buildStepMessage.getName(), buildStepMessage.getVersion());
+				if (definedBuildStep == null) {
 					throw new UnresolvedBuildStepException(buildStepMessage);
 				}
 
@@ -60,28 +62,18 @@ public class WorkService {
 					.putAll(pluginAddedParameters)
 					.build();
 
-				buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, buildStep, currentResult, currentStatus, workspace, new SdkImpl(), buildStepIndex, totalBuildSteps);
+				BuildStepContextImpl buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, definedBuildStep, currentResult, currentStatus, workspace, new SdkImpl(), buildStepIndex, totalBuildSteps);
 
 				runBuildStepInterceptorBefore(buildStepInterceptors, buildStepContext);
 
-				BuildStep newBuildStep = buildStepContext.getBuildStep();
-				if(buildStep != newBuildStep) {
-					if(log.isInfoEnabled()) log.info("Overwritten build step: " + buildStep.getClass().getName() + " was overwritten by " + newBuildStep.getClass().getName());
-
-					buildStep = newBuildStep;
+				BuildStep buildStepToExecute = buildStepContext.getBuildStep();
+				if(buildStepToExecute != definedBuildStep && log.isInfoEnabled()) {
+					log.info("Overwritten build step: " + definedBuildStep.getClass().getName() + " was overwritten by " + buildStepToExecute.getClass().getName());
 				}
-
-				long buildStepStartTime = System.currentTimeMillis();
 				try {
-					buildStep.execute(buildStepContext);
-
-					long buildStepRunTime = System.currentTimeMillis() - buildStepStartTime;
-
-					if(log.isInfoEnabled()) {
-						log.info("----------------------------");
-						log.info("Run time ("+buildStep.getClass().getName()+"): " + buildStepRunTime + "ms");
-						log.info("----------------------------");
-					}
+					stopWatch.time(buildStepToExecute.getClass().getName(),
+						() -> buildStepToExecute.execute(buildStepContext)
+					);
 
 					pluginAddedParameters = new HashMap<>(buildStepContext.getAddedParameters());
 					currentResult = buildStepContext.getResult();
@@ -92,14 +84,7 @@ public class WorkService {
 						break;
 					}
 				} catch (Exception e) {
-					long buildStepRunTime = System.currentTimeMillis() - buildStepStartTime;
-
 					log.info("Unexpected exception while running " + work.getId(), e);
-					if(log.isInfoEnabled()) {
-						log.info("----------------------------");
-						log.info("Run time ("+buildStep.getClass().getName()+"):" + buildStepRunTime + "ms");
-						log.info("----------------------------");
-					}
 
 					pluginAddedParameters = new HashMap<>(buildStepContext.getAddedParameters());
 					currentResult = BuildStep.Result.ERROR;
@@ -119,15 +104,9 @@ public class WorkService {
 				log.info("Running BuildStepInterceptor before: " + buildStepInterceptor.getClass().getName());
 			}
 
-			long interceptorStartTime = System.currentTimeMillis();
-			buildStepInterceptor.before(buildStepContext);
-			long interceptorRunTime = System.currentTimeMillis() - interceptorStartTime;
-
-			if(log.isInfoEnabled()) {
-				log.info("----------------------------");
-				log.info("Run time ("+buildStepInterceptor.getClass()+".before): " + interceptorRunTime + "ms");
-				log.info("----------------------------");
-			}
+			stopWatch.time(buildStepInterceptor.getClass().getName(),
+				() -> buildStepInterceptor.before(buildStepContext)
+			);
 		}
 	}
 
@@ -137,16 +116,9 @@ public class WorkService {
 				log.info("Running BuildStepInterceptor after: " + buildStepInterceptor.getClass().getName());
 			}
 
-			long interceptorStartTime = System.currentTimeMillis();
-			buildStepInterceptor.after(buildStepContext);
-			long interceptorRunTime = System.currentTimeMillis() - interceptorStartTime;
-
-			if(log.isInfoEnabled()) {
-				log.info("----------------------------");
-				log.info("Run time ("+buildStepInterceptor.getClass()+".after): " + interceptorRunTime + "ms");
-				log.info("----------------------------");
-			}
-
+			stopWatch.time(buildStepInterceptor.getClass().getName(),
+				() -> buildStepInterceptor.after(buildStepContext)
+			);
 		}
 	}
 }
