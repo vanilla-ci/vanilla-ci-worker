@@ -24,4 +24,20 @@ public class StringUtilTest {
 		String clockFormat = StringUtil.millisToClockFormat(value);
 		assert "0:00:00.000".equals(clockFormat);
 	}
+
+	@Test
+	public void sanitizeFilename_allInvalid() {
+		String allInvalid = "\0 < > : \" ' | ? * ~ \\ \t \n \r";
+		String result = StringUtil.sanitizeFilename(allInvalid);
+		String expected = "___________________________";
+		assert expected.equals(result) : "expected `'" +expected + "'` but was `'" + result + "'`";
+	}
+
+	@Test
+	public void sanitizeFilename_someValid() {
+		String allInvalid = "Hello my name is 'Bob'";
+		String result = StringUtil.sanitizeFilename(allInvalid);
+		String expected = "Hello_my_name_is__Bob_";
+		assert expected.equals(result) : "expected `'" +expected + "'` but was `'" + result + "'`";
+	}
 }
