@@ -2,6 +2,8 @@ package com.vanillaci.internal.osgi;
 
 import com.vanillaci.internal.annotations.*;
 import com.vanillaci.internal.services.*;
+import com.vanillaci.internal.util.*;
+import org.apache.logging.log4j.*;
 import org.osgi.framework.*;
 
 /**
@@ -12,13 +14,19 @@ import org.osgi.framework.*;
  */
 @ReflectivelyUsed
 public class Activator implements BundleActivator {
+	private static final Logger log = LogManager.getLogger();
+
 	@Override
 	public void start(BundleContext context) throws Exception {
+		VanillaCiConfig config = VanillaCiConfig.createDefault();
+
 		BuildStepService buildStepService = new BuildStepService();
 		BuildStepInterceptorService buildStepInterceptorService = new BuildStepInterceptorService();
 
-		//WorkService workService = new WorkService(buildStepService, buildStepInterceptorService);
-		//TODO: initialize Messaging and start listening to queues
+		WorkService workService = new WorkService(config, buildStepService, buildStepInterceptorService);
+		log.info("initialized workService " + workService);
+
+		//TODO: initialize Messaging and start listening to queues/topics
 
 		PluginServiceListener listener = new PluginServiceListener(buildStepService, buildStepInterceptorService);
 		context.addServiceListener(listener);

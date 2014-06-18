@@ -51,4 +51,11 @@ public class Work {
 	public List<BuildStepMessage> getPostBuildSteps() {
 		return postBuildSteps;
 	}
+
+	//TODO: add getWorkspace
+
+	@Override
+	public String toString() {
+		return "Work{'" + id + "'}";
+	}
 }

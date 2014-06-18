@@ -2,6 +2,7 @@ package com.vanillaci.internal.services;
 
 import com.google.common.collect.*;
 import com.vanillaci.internal.model.*;
+import com.vanillaci.internal.util.*;
 import com.vanillaci.plugins.*;
 import org.junit.*;
 
@@ -24,6 +25,8 @@ public class WorkServiceTest {
 
 	@Before
 	public void setUp() throws Exception {
+		VanillaCiConfig config = mock(VanillaCiConfig.class);
+
 		buildStepService = mock(BuildStepService.class);
 		when(buildStepService.get(Result.SUCCESS.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.SUCCESS, Status.CONTINUE));
 		when(buildStepService.get(Result.FAILURE.name(), V1_0)).thenReturn(new SimpleBuildStep(Result.FAILURE, Status.HALT));
@@ -33,7 +36,7 @@ public class WorkServiceTest {
 		buildStepInterceptorService = mock(BuildStepInterceptorService.class);
 		when(buildStepInterceptorService.getAll()).thenReturn(Collections.emptyList());
 
-		workService = new WorkService(buildStepService, buildStepInterceptorService);
+		workService = new WorkService(config, buildStepService, buildStepInterceptorService);
 	}
 
 	@Test

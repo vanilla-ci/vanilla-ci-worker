@@ -19,16 +19,23 @@ public class WorkService {
 
 	private final StopWatch stopWatch = new StopWatch(log);
 
+	private final VanillaCiConfig config;
 	private final BuildStepService buildStepService;
 	private final BuildStepInterceptorService buildStepInterceptorService;
 
-	public WorkService(BuildStepService buildStepService, BuildStepInterceptorService buildStepInterceptorService) {
+	public WorkService(VanillaCiConfig config, BuildStepService buildStepService, BuildStepInterceptorService buildStepInterceptorService) {
+		this.config = config;
 		this.buildStepService = buildStepService;
 		this.buildStepInterceptorService = buildStepInterceptorService;
 	}
 
 	public BuildStep.Result executeWork(Work work) throws IOException {
-		File workspace = new File("workspace");
+		File workspacesDirectory = config.getWorkspacesDirectory();
+		String workspaceName = StringUtil.sanitizeFilename(work.getId());
+
+		// TODO: allow work to define the name of the workspace
+
+		File workspace = new File(workspacesDirectory, workspaceName);
 		if (!workspace.exists() && !workspace.mkdirs()) {
 			throw new IOException("couldn't create workspace " + workspace.getAbsolutePath());
 		}
