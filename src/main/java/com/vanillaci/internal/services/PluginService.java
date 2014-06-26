@@ -59,7 +59,7 @@ public class PluginService {
 			}
 		} finally {
 			log.info("Deleting temp plugin file: " + pluginFile.toString());
-			if(!pluginFile.delete()) {
+			if(!pluginFile.delete() && pluginFile.exists()) {
 				log.error("Unable to delete temp plugin file: " + pluginFile.getAbsolutePath());
 			}
 		}
