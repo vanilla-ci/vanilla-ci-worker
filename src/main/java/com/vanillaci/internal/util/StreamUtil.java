@@ -8,9 +8,9 @@ import java.util.*;
  * @author Joel Johnson
  */
 public class StreamUtil {
-	public static String getSha512(InputStream inputStream) throws IOException {
+	public static String getSha(InputStream inputStream) throws IOException {
 		try {
-			MessageDigest messageDigest = MessageDigest.getInstance("SHA-512");
+			MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
 			return getHash(inputStream, messageDigest);
 		} catch (NoSuchAlgorithmException e) {
 			throw new RuntimeException(e);
