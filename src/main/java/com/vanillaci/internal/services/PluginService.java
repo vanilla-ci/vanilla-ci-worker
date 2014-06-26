@@ -29,7 +29,6 @@ public class PluginService {
 
 	/**
 	 * Downloads, checksums, and installs the plugin from the location contains in the given pluginMessage
-	 * @param pluginMessage
 	 * @throws BundleException
 	 * @throws IOException
 	 */
