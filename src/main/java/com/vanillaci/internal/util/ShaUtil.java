@@ -5,9 +5,17 @@ import java.security.*;
 import java.util.*;
 
 /**
+ * Contains various methods for easily calculating a Sha1 on a file or stream.
+ *
  * @author Joel Johnson
  */
-public class StreamUtil {
+public class ShaUtil {
+	public static String getSha(File pluginFile) throws IOException {
+		try(InputStream inputStream = new FileInputStream(pluginFile)) {
+			return ShaUtil.getSha(inputStream);
+		}
+	}
+
 	public static String getSha(InputStream inputStream) throws IOException {
 		try {
 			MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
