@@ -19,4 +19,13 @@ public class TestUtil {
 			throw new RuntimeException("Unable to open stream for " + resource.toString());
 		}
 	}
+
+	public static File getResourceFile(String name) {
+		URL resource = TestUtil.class.getClassLoader().getResource("testFile.txt");
+		if (resource == null) {
+			throw new RuntimeException("Unknown resource " + name);
+		}
+
+		return new File(resource.getFile());
+	}
 }
