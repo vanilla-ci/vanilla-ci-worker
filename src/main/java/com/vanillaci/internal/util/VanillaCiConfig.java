@@ -75,4 +75,8 @@ public class VanillaCiConfig {
 
 		return workspacesDirectory;
 	}
+
+	public File getTempDir() {
+		return new File(getHomeDirectory(), "temp");
+	}
 }

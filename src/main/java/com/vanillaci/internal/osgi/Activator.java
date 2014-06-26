@@ -20,6 +20,8 @@ public class Activator implements BundleActivator {
 	public void start(BundleContext context) throws Exception {
 		VanillaCiConfig config = VanillaCiConfig.createDefault();
 
+		PluginService pluginService = new PluginService(config, context);
+
 		BuildStepService buildStepService = new BuildStepService();
 		BuildStepInterceptorService buildStepInterceptorService = new BuildStepInterceptorService();
 
