@@ -15,7 +15,6 @@ public class BuildStepContextImpl implements BuildStepContext {
 	private final Map<String, String> addedParameters;
 
 	private final File workspace;
-	private final Sdk sdk;
 
 	private BuildStep buildStep;
 	private BuildStep.Result result;
@@ -27,11 +26,10 @@ public class BuildStepContextImpl implements BuildStepContext {
 	/**
 	 * @param pluginAddedParameters Any time a plugin adds parameters, those parameters will be available to all other jobs.
 	 */
-	public BuildStepContextImpl(Map<String, String> parameters, Map<String, String> pluginAddedParameters, BuildStep buildStep, BuildStep.Result result, BuildStep.Status status, File workspace, Sdk sdk, int buildStepsIndex, int totalBuildSteps) {
+	public BuildStepContextImpl(Map<String, String> parameters, Map<String, String> pluginAddedParameters, BuildStep buildStep, BuildStep.Result result, BuildStep.Status status, File workspace, int buildStepsIndex, int totalBuildSteps) {
 		this.parameters = ImmutableMap.copyOf(parameters);
 		this.addedParameters = new HashMap<>(pluginAddedParameters);
 		this.workspace = workspace;
-		this.sdk = sdk;
 
 		this.buildStep = buildStep;
 		this.result = result;
@@ -102,9 +100,5 @@ public class BuildStepContextImpl implements BuildStepContext {
 
 	public File getWorkspace() {
 		return workspace;
-	}
-
-	public Sdk getSdk() {
-		return sdk;
 	}
 }

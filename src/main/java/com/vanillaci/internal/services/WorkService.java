@@ -69,7 +69,7 @@ public class WorkService {
 					.putAll(pluginAddedParameters)
 					.build();
 
-				BuildStepContextImpl buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, definedBuildStep, currentResult, currentStatus, workspace, new SdkImpl(), buildStepIndex, totalBuildSteps);
+				BuildStepContextImpl buildStepContext = new BuildStepContextImpl(allParameters, pluginAddedParameters, definedBuildStep, currentResult, currentStatus, workspace, buildStepIndex, totalBuildSteps);
 
 				runBuildStepInterceptorBefore(buildStepInterceptors, buildStepContext);
 
