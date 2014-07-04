@@ -29,6 +29,7 @@ public class Activator implements BundleActivator {
 		log.info("initialized workService " + workService);
 
 		//TODO: initialize Messaging and start listening to queues/topics
+		MessagingService messagingService = new MessagingService(config);
 
 		PluginServiceListener listener = new PluginServiceListener(buildStepService, buildStepInterceptorService);
 		context.addServiceListener(listener);

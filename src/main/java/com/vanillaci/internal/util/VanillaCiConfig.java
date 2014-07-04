@@ -79,4 +79,14 @@ public class VanillaCiConfig {
 	public File getTempDir() {
 		return new File(getHomeDirectory(), "temp");
 	}
+
+	public int getWeight() {
+		String weightString = properties.getProperty("weight", "5");
+		return Integer.parseInt(weightString);
+	}
+
+	@NotNull
+	public String getExpression() {
+		return properties.getProperty("expression", "");
+	}
 }
